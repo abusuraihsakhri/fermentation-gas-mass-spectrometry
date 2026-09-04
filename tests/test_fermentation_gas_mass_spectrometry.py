@@ -63,3 +63,35 @@ def test_supervisor_consensus_and_audit():
     assert main(["audit", "--task-id", "CLI-TEST-01"]) == 0
     assert main(["chat", "Explain", "specifications"]) == 0
     assert main(["verify-audit"]) == 0
+
+
+def test_input_validation_rejects_nan():
+    import math
+    import pytest
+    with pytest.raises(Exception):
+        SystemTaskPayload(task_id="T-NAN", target_identifier="KEY-NAN", primary_metric=math.nan)
+
+
+def test_input_validation_rejects_inf():
+    import math
+    import pytest
+    with pytest.raises(Exception):
+        SystemTaskPayload(task_id="T-INF", target_identifier="KEY-INF", primary_metric=math.inf)
+
+
+def test_input_validation_rejects_empty_task_id():
+    import pytest
+    with pytest.raises(Exception):
+        SystemTaskPayload(task_id="", target_identifier="KEY-01", primary_metric=10.0)
+
+
+def test_batch_missing_file_returns_error():
+    result = main(["batch", "-i", "nonexistent_file.csv"])
+    assert result == 1
+
+
+def test_phi_redaction():
+    redacted = PHIGuard.redact_phi("Contact patient at john@example.com or MRN-12345")
+    assert "john@example.com" not in redacted
+    assert "MRN-12345" not in redacted
+    assert "[REDACTED_IDENTIFIER]" in redacted
