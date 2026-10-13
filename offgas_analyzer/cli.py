@@ -5,8 +5,19 @@ import argparse
 import csv
 import json
 import sys
+from .calculations import calculate_offgas
 from .models import FrontierPayload
 from .agents import OffGasCoordinator
+
+def parse_csv_boolean(value):
+    """Parse serialized CSV booleans without treating 'False' as truthy."""
+    normalized = str(value if value is not None else "").strip().lower()
+    if normalized in ("true", "1", "yes", "y"):
+        return True
+    if normalized in ("false", "0", "no", "n", ""):
+        return False
+    raise ValueError(f"Invalid boolean value: {value!r}")
+
 
 coordinator = OffGasCoordinator()
 
@@ -14,6 +25,13 @@ coordinator = OffGasCoordinator()
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="fermentation-gas-mass-spectrometry", description="OffGas-Analyzer: Fermentation Respiratory Quotient (RQ) & OUR/CER Agent")
     subparsers = parser.add_subparsers(dest="command", required=True)
+
+    p_calc = subparsers.add_parser("calculate", help="Calculate OUR, CER and RQ from dry mole fractions")
+    p_calc.add_argument("--flow", type=float, required=True, help="Dry inlet molar flow in mmol/min")
+    p_calc.add_argument("--inlet-o2", type=float, required=True, help="Inlet O2 mole fraction (0..1)")
+    p_calc.add_argument("--inlet-co2", type=float, required=True, help="Inlet CO2 mole fraction (0..1)")
+    p_calc.add_argument("--outlet-o2", type=float, required=True, help="Outlet O2 mole fraction (0..1)")
+    p_calc.add_argument("--outlet-co2", type=float, required=True, help="Outlet CO2 mole fraction (0..1)")
 
     # Audit
     p_audit = subparsers.add_parser("audit", help="Run single task evaluation")
@@ -39,6 +57,16 @@ def main(argv=None):
     p_serve.add_argument("--port", type=int, default=8000)
 
     args = parser.parse_args(argv)
+
+    if args.command == "calculate":
+        try:
+            data = calculate_offgas(args.flow, args.inlet_o2, args.inlet_co2,
+                                    args.outlet_o2, args.outlet_co2)
+        except ValueError as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            return 1
+        print(json.dumps(data, indent=2))
+        return 0
 
     if args.command == "audit":
         payload = FrontierPayload(
@@ -81,24 +109,28 @@ def main(argv=None):
             print(f"Error: Permission denied reading '{args.input}'.", file=sys.stderr)
             return 1
 
-        out_fields = fieldnames + ["overall_status", "total_alerts", "critical_count", "consensus_summary"]
+        out_fields = fieldnames + [name for name in ["overall_status", "total_alerts", "critical_count", "consensus_summary"] if name not in fieldnames]
         out_rows = []
-        for r in rows:
-            payload = FrontierPayload(
-                task_id=r.get("task_id", "TASK-01"),
-                target_identifier=r.get("target_identifier", "TARGET-01"),
-                primary_metric=float(r.get("primary_metric", 15.0)),
-                secondary_metric=float(r.get("secondary_metric", 5.0)),
-                status_descriptor=r.get("status_descriptor", "NOMINAL"),
-                is_critical_flag=bool(r.get("is_critical_flag", False)),
-            )
-            dossier = coordinator.process(payload)
-            row_dict = dict(r)
-            row_dict["overall_status"] = dossier["overall_status"]
-            row_dict["total_alerts"] = dossier["total_alerts"]
-            row_dict["critical_count"] = dossier["critical_count"]
-            row_dict["consensus_summary"] = dossier["consensus_summary"]
-            out_rows.append(row_dict)
+        for row_number, r in enumerate(rows, start=2):
+            try:
+                payload = FrontierPayload(
+                    task_id=r.get("task_id", "TASK-01"),
+                    target_identifier=r.get("target_identifier", "TARGET-01"),
+                    primary_metric=float(r.get("primary_metric", 15.0)),
+                    secondary_metric=float(r.get("secondary_metric", 5.0)),
+                    status_descriptor=r.get("status_descriptor", "NOMINAL"),
+                    is_critical_flag=parse_csv_boolean(r.get("is_critical_flag", False)),
+                )
+                dossier = coordinator.process(payload)
+                row_dict = dict(r)
+                row_dict["overall_status"] = dossier["overall_status"]
+                row_dict["total_alerts"] = dossier["total_alerts"]
+                row_dict["critical_count"] = dossier["critical_count"]
+                row_dict["consensus_summary"] = dossier["consensus_summary"]
+                out_rows.append(row_dict)
+            except (ValueError, TypeError) as exc:
+                print(f"Error in CSV row {row_number}: {exc}", file=sys.stderr)
+                return 1
 
         try:
             with open(args.output, mode="w", encoding="utf-8", newline="") as f:
