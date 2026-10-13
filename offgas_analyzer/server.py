@@ -17,7 +17,7 @@ def create_app():
         app = FastAPI(
             title="OffGas-Analyzer: Fermentation Respiratory Quotient (RQ) & OUR/CER Agent",
             description="Calculates Oxygen Uptake Rate (OUR), Carbon Dioxide Evolution Rate (CER), and Respiratory Quotient (RQ = CER/OUR).",
-            version="2.0.0-FRONTIER",
+            version="2.1.0",
         )
 
         class TaskRequest(BaseModel):
@@ -43,7 +43,7 @@ def create_app():
 
         @app.get("/health")
         def health():
-            return {"status": "HEALTHY", "system": "fermentation-gas-mass-spectrometry", "domain": "Bioprocess Engineering", "version": "2.0.0-FRONTIER"}
+            return {"status": "HEALTHY", "system": "fermentation-gas-mass-spectrometry", "domain": "Bioprocess Engineering", "version": "2.1.0"}
 
         @app.post("/api/audit")
         def api_audit(req: TaskRequest):
