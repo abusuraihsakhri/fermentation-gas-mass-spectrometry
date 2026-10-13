@@ -2,6 +2,7 @@
 FastAPI REST API Server for Fermentation Gas Mass Spectrometry.
 """
 import logging
+from offgas_analyzer.calculations import calculate_offgas
 from typing import Dict, Any, List
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
@@ -18,6 +19,16 @@ app = FastAPI(
     description="Enterprise Distributed Component Platform (Clinical & Biomedical AI)",
     version="3.0.0-ENTERPRISE",
 )
+
+
+
+class OffgasCalculationRequest(BaseModel):
+    """Dry molar-flow measurement inputs; all gas compositions are fractions 0..1."""
+    inlet_flow_mmol_min: float
+    inlet_o2: float
+    inlet_co2: float
+    outlet_o2: float
+    outlet_co2: float
 
 
 class ChatRequest(BaseModel):
@@ -65,3 +76,11 @@ def api_chat(req: ChatRequest):
 @app.get("/api/audit/logs")
 def api_audit_logs():
     return {"audit_trail": AuditLogger.get_trail(), "verified": AuditLogger.verify_integrity()}
+
+
+@app.post("/api/offgas/calculate")
+def api_calculate_offgas(req: OffgasCalculationRequest):
+    try:
+        return calculate_offgas(**req.model_dump())
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
