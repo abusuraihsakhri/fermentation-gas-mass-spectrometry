@@ -1,5 +1,7 @@
 # Fermentation Gas Mass Spectrometry
 
+### [Open the Live Application →](https://abusuraihsakhri.github.io/fermentation-gas-mass-spectrometry/)
+
 A fermentation off-gas analysis toolkit with a **browser-based dry-gas calculator**, a Python calculation engine, REST endpoints, and legacy threshold-based audit workflows.
 
 The quantitative module calculates oxygen uptake (OUR), carbon dioxide evolution (CER), and respiratory quotient (RQ). It **does not ingest raw mass-spectrometer spectra**, perform mass-to-charge peak identification, or automatically calibrate sensors.
@@ -14,7 +16,7 @@ python -m http.server 8080 --directory site
 
 Open **http://localhost:8080/**. Enter dry inlet gas flow in mmol/min, gas concentrations in percent, select **Calculate**, and optionally export the result as CSV. The results and download are calculated locally in your browser. No sample data are sent to a server. Modern browsers with ES module support are required.
 
-A GitHub Pages publishing workflow is configured; availability of a public live application depends on repository Pages settings and successful deployment.
+The standalone application is published through the GitHub Pages workflow in `.github/workflows/pages.yml`.
 
 ## Calculation model and assumptions
 
