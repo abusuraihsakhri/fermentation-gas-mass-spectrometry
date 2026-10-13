@@ -18,8 +18,8 @@ supervisor = SystemSupervisor(model_provider="mock")
 
 app = FastAPI(
     title="Fermentation Gas Mass Spectrometry API",
-    description="Enterprise Distributed Component Platform (Clinical & Biomedical AI)",
-    version="3.0.0-ENTERPRISE",
+    description="Legacy threshold-based audit and quantitative dry off-gas analysis",
+    version="2.1.0",
 )
 
 
@@ -44,7 +44,7 @@ def console_page():
 
 @app.get("/health")
 def health():
-    return {"status": "HEALTHY", "service": "fermentation-gas-mass-spectrometry", "domain": "Clinical & Biomedical AI", "standard": "CAP / CLSI / ISO Standards", "version": "3.0.0-ENTERPRISE"}
+    return {"status": "HEALTHY", "service": "fermentation-gas-mass-spectrometry", "domain": "Clinical & Biomedical AI", "standard": "CAP / CLSI / ISO Standards", "version": "2.1.0"}
 
 
 @app.get("/metrics")
