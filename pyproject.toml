@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fermentation-gas-mass-spectrometry"
-version = "2.0.0"
+version = "2.1.0"
 description = "OffGas-Analyzer: Fermentation Respiratory Quotient (RQ) & OUR/CER Engine"
 readme = "README.md"
 authors = [{ name = "Dr. Abu Suraih Sakhri", email = "abusuraih@example.com" }]
@@ -13,8 +13,8 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
-    "Topic :: Security/Cryptography",
-    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Chemistry",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
 requires-python = ">=3.9"
 dependencies = [
@@ -26,6 +26,8 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
+    "httpx>=0.27",
+    "build>=1.2",
 ]
 
 [project.scripts]
@@ -34,3 +36,9 @@ fermentation-gas-mass-spectrometry = "offgas_analyzer.cli:main"
 [project.urls]
 Homepage = "https://github.com/abusuraihsakhri/fermentation-gas-mass-spectrometry"
 Repository = "https://github.com/abusuraihsakhri/fermentation-gas-mass-spectrometry.git"
+
+[tool.setuptools]
+py-modules = ["cli", "enrichment", "simulator", "offgas_analyzer_app"]
+
+[tool.setuptools.packages.find]
+include = ["agents*", "offgas_analyzer*"]
