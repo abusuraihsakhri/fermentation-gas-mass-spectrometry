@@ -64,3 +64,29 @@ jobs:
           python -m pip install pip-audit
       - name: Audit installed dependencies
         run: python -m pip_audit --local --skip-editable --progress-spinner off
+
+  container-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build production Docker image
+        run: docker build -t offgas-ci .
+      - name: Check container HTTP workflow
+        run: |
+          set -euo pipefail
+          docker run -d --name offgas-ci -p 127.0.0.1:8000:8000 offgas-ci
+          trap 'docker rm -f offgas-ci' EXIT
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:8000/health >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8000/ | grep -q 'Operations Console'
+          curl -fsS http://127.0.0.1:8000/api/offgas/calculate \
+            -H 'Content-Type: application/json' \
+            -d '{"inlet_flow_mmol_min":100,"inlet_o2":0.21,"inlet_co2":0,"outlet_o2":0.16,"outlet_co2":0.04}' > /tmp/response.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          result = json.loads(Path('/tmp/response.json').read_text())
+          assert abs(result['rq'] - (3.95 / 5.2)) < 1e-10
+          PY
