@@ -37,6 +37,8 @@ class SystemTaskPayload(BaseModel):
         """Strip control characters and excessive whitespace from text inputs."""
         import re
         v = re.sub(r"[\x00-\x1f\x7f]", "", v.strip())
+        if not v:
+            raise ValueError("Text identifiers must not be empty after sanitization")
         return v
 
     @field_validator("primary_metric", "secondary_metric")

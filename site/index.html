@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Client-side fermentation dry off-gas balance calculator for oxygen uptake, carbon dioxide evolution, and respiratory quotient.">
+  <title>Fermentation Off-Gas Calculator · OUR / CER / RQ</title>
+  <style>
+    :root {color-scheme:dark;--bg:#0b1120;--panel:#131e33;--line:#334155;--text:#f1f5f9;--muted:#cbd5e1;--accent:#38bdf8;--danger:#fda4af}
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}
+    main{max-width:1100px;margin:auto;padding:32px 20px 60px}
+    header{margin-bottom:24px}
+    h1{font-size:clamp(1.6rem,4vw,2.3rem);line-height:1.2;margin:0 0 10px}
+    h2{font-size:1.2rem;margin:0 0 20px}
+    p{margin:0 0 14px}
+    .muted,.help{color:var(--muted)}
+    .help{font-size:.86rem}
+    .layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px}
+    .panel{border:1px solid var(--line);border-radius:14px;padding:24px;background:var(--panel)}
+    .field-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+    .field{display:flex;flex-direction:column;gap:6px}
+    label{font-weight:600;font-size:.91rem}
+    input{width:100%;border:1px solid #64748b;border-radius:8px;background:#0b1120;color:#fff;padding:10px 12px;font:inherit}
+    input:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+    button{cursor:pointer;font:inherit;font-weight:700;border-radius:8px;border:1px solid var(--accent);background:var(--accent);color:#082f49;padding:10px 16px}
+    button.secondary{background:transparent;color:#e0f2fe}
+    button:disabled{opacity:.45;cursor:not-allowed}
+    .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}
+    .results{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    .result{padding:15px;background:#0b1120;border:1px solid var(--line);border-radius:10px}
+    .metric{display:block;font-size:.82rem;color:var(--muted)}
+    output{display:block;font-variant-numeric:tabular-nums;font-size:1.5rem;font-weight:700;overflow-wrap:anywhere}
+    .error{margin-top:16px;color:var(--danger);min-height:1.5em}
+    .notes{margin-top:20px;border-top:1px solid var(--line);padding-top:18px}
+    .notes p{font-size:.88rem;color:var(--muted)}
+    .warning{margin-top:16px;color:#fde68a}
+    footer{margin-top:25px;color:var(--muted);font-size:.86rem}
+    a{color:#7dd3fc}
+    @media(max-width:760px){main{padding:18px 12px 36px}.layout{grid-template-columns:1fr}.panel{padding:18px}}
+    @media(max-width:420px){.field-grid{grid-template-columns:1fr}.results{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Fermentation off-gas analysis</h1>
+    <p class="muted">Calculate oxygen uptake (OUR), carbon dioxide evolution (CER), and respiratory quotient (RQ) from dry-gas measurements. All computations run in your browser; no data are uploaded.</p>
+  </header>
+  <div class="layout">
+    <section class="panel" aria-labelledby="input-title">
+      <h2 id="input-title">Gas stream measurements</h2>
+      <form id="calculator" novalidate>
+        <div class="field">
+          <label for="flow">Inlet molar gas flow (mmol/min)</label>
+          <input id="flow" name="flow" type="number" value="100" min="0.000001" step="any" required>
+          <span class="help">Dry-gas flow, expressed in mmol/min. Use a common measurement basis.</span>
+        </div>
+        <div class="field-grid" style="margin-top:16px">
+          <div class="field"><label for="inletO2">Inlet O₂ (%)</label><input id="inletO2" type="number" min="0" max="100" value="20.95" step="any" required></div>
+          <div class="field"><label for="inletCO2">Inlet CO₂ (%)</label><input id="inletCO2" type="number" min="0" max="100" value="0.04" step="any" required></div>
+          <div class="field"><label for="outletO2">Outlet O₂ (%)</label><input id="outletO2" type="number" min="0" max="100" value="17" step="any" required></div>
+          <div class="field"><label for="outletCO2">Outlet CO₂ (%)</label><input id="outletCO2" type="number" min="0" max="100" value="4" step="any" required></div>
+        </div>
+        <div class="actions">
+          <button type="submit">Calculate</button>
+          <button type="reset" class="secondary">Reset</button>
+        </div>
+        <div id="error" class="error" role="alert" aria-live="assertive"></div>
+      </form>
+    </section>
+    <section class="panel" aria-labelledby="results-title">
+      <h2 id="results-title">Calculated gas balance</h2>
+      <p class="help" id="result-message" aria-live="polite">Enter measured gas concentrations and choose Calculate.</p>
+      <div class="results" aria-live="polite">
+        <div class="result"><span class="metric">Oxygen uptake rate</span><output id="our">—</output><span class="help">mmol/min</span></div>
+        <div class="result"><span class="metric">CO₂ evolution rate</span><output id="cer">—</output><span class="help">mmol/min</span></div>
+        <div class="result"><span class="metric">Respiratory quotient</span><output id="rq">—</output><span class="help">dimensionless CER / OUR</span></div>
+        <div class="result"><span class="metric">Calculated outlet flow</span><output id="outletFlow">—</output><span class="help">mmol/min</span></div>
+      </div>
+      <div id="warnings" class="warning" role="status" aria-live="polite"></div>
+      <div class="actions"><button id="export" class="secondary" type="button" disabled>Export result (CSV)</button></div>
+      <div class="notes">
+        <h2>Calculation assumptions</h2>
+        <p>Ideal, well-mixed inlet/outlet gas streams; dry mole fractions; comparable reference conditions; inert fraction (all non-O₂, non-CO₂ gases) conserved. The outlet flow is corrected by the inert balance, not assumed equal to the inlet flow.</p>
+        <p><strong>OUR</strong> = Fᵢ yO₂,ᵢ − Fₒ yO₂,ₒ; <strong>CER</strong> = Fₒ yCO₂,ₒ − Fᵢ yCO₂,ᵢ; <strong>RQ</strong> = CER/OUR when OUR is positive.</p>
+        <p>This is a process-wide gas balance. It does not analyze raw mass spectra, correct for instrument response, or normalize rates by reactor volume. Sensor calibration, humidity removal, leakage, and mixing time affect accuracy.</p>
+      </div>
+    </section>
+  </div>
+  <footer>Standalone, offline-capable after loading. <a href="https://github.com/abusuraihsakhri/fermentation-gas-mass-spectrometry">Source and methodology</a>.</footer>
+</main>
+<script type="module" src="./app.mjs"></script>
+</body>
+</html>

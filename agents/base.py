@@ -8,6 +8,7 @@ import json
 import time
 import hmac
 import hashlib
+from copy import deepcopy
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone
 from pydantic import BaseModel, Field
@@ -24,7 +25,7 @@ PHI_PATTERNS = [
 
 
 class SecurityException(Exception):
-    """Raised when outbound data violates HIPAA Safe Harbor or contains raw PHI."""
+    """Raised when a best-effort sensitive-identifier regex check matches."""
     pass
 
 
@@ -97,7 +98,7 @@ class AuditTrail:
         return True
 
     def get_trail(self) -> List[Dict[str, Any]]:
-        return self.logs
+        return deepcopy(self.logs)
 
 
 GLOBAL_AUDIT = AuditTrail()

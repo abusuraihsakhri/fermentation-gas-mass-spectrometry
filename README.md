@@ -1,182 +1,98 @@
 # Fermentation Gas Mass Spectrometry
 
-> **Domain:** Clinical Decision Support & Biomedical Computing
-> **Reference Guidelines & Standards:** Standard Clinical Formulations & ISO/IEC Quality Frameworks
+A fermentation off-gas analysis toolkit with a **browser-based dry-gas calculator**, a Python calculation engine, REST endpoints, and legacy threshold-based audit workflows.
 
-<div align="center">
+The quantitative module calculates oxygen uptake (OUR), carbon dioxide evolution (CER), and respiratory quotient (RQ). It **does not ingest raw mass-spectrometer spectra**, perform mass-to-charge peak identification, or automatically calibrate sensors.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB.svg?logo=python&logoColor=white)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688.svg?logo=fastapi&logoColor=white)
-![Audit Trail](https://img.shields.io/badge/Audit-HMAC--SHA256_Tamper--Evident-brightgreen.svg)
-![Zero-PHI Guard](https://img.shields.io/badge/Guard-Zero--PHI_Outbound-blue.svg)
-![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker&logoColor=white)
+## Run the browser calculator
 
-</div>
-
----
-
-## 📖 What It Does
-
-Fermentation Gas Mass Spectrometry is an enterprise analytical platform that evaluates fermentation process data through specialized worker agents. It provides:
-
-- **Respiratory Quotient (RQ) Analysis**: Computes RQ = CER/OUR from off-gas measurements
-- **Oxygen Uptake Rate (OUR) & CO2 Evolution Rate (CER) Evaluation**: Real-time metabolic state classification
-- **Multi-Agent Consensus**: Coordinated evaluation across QC, Safety, and Protocol Conformance workers
-- **Risk Stratification**: Multi-tier urgency classification with actionable remediation
-
----
-
-## ⚙️ Key Capabilities & Algorithmic Modules
-
-- **Deterministic Calculation Engine**: Strict compliance with standard reference formulations and thresholds
-- **Risk & Urgency Classification**: Multi-tier categorization with automated clinical/operational action recommendations
-- **Validation & Guardrails**: Rigorous input bounds checking and anomaly detection
-- **Zero-PHI Outbound Interceptor**: AST and regex inspection blocking SSNs, MRNs, phone numbers, and patient identifiers
-- **Tamper-Evident HMAC-SHA256 Audit Trail**: Chained, cryptographically signed logs with full signature verification
-
----
-
-## 💻 Installation
+The static application lives in `site/`. It uses native JavaScript modules and does not require a Python runtime or backend.
 
 ```bash
-# Clone the repository
-git clone https://github.com/abusuraihsakhri/fermentation-gas-mass-spectrometry.git
-cd fermentation-gas-mass-spectrometry
-
-# Install production dependencies
-pip install -e .
-
-# Install development dependencies (includes pytest)
-pip install -e ".[dev]"
-
-# Set audit key (recommended for production)
-export AUDIT_SECRET_KEY="your-secure-random-key-here"
+python -m http.server 8080 --directory site
 ```
 
----
+Open **http://localhost:8080/**. Enter dry inlet gas flow in mmol/min, gas concentrations in percent, select **Calculate**, and optionally export the result as CSV. The results and download are calculated locally in your browser. No sample data are sent to a server. Modern browsers with ES module support are required.
 
-## 💻 CLI Quickstart & Usage
+A GitHub Pages publishing workflow is configured; availability of a public live application depends on repository Pages settings and successful deployment.
 
-### 1. Single Task Evaluation
-```bash
-python cli.py audit --task-id TASK-001 --target KEY-01 --primary 28.5 --secondary 14.2 --critical --status DISCORDANT
+## Calculation model and assumptions
+
+Input gas streams must be dry and on a consistent pressure/temperature molar basis. The inert gas fraction is assumed conserved between inlet and outlet.
+
+```text
+Fout = Fin * (1 - yO2,in - yCO2,in) / (1 - yO2,out - yCO2,out)
+OUR  = Fin*yO2,in - Fout*yO2,out
+CER  = Fout*yCO2,out - Fin*yCO2,in
+RQ   = CER / OUR            (only when OUR > 0)
 ```
 
-### 2. Supervisory Chat Query
+Here `F` is the gas molar flow in mmol/min and `y` is the **dimensionless mole fraction** (0–1). Calculated OUR/CER are **process-wide mmol/min**, not volumetric rates; normalize separately using a measured broth volume if needed.
+
+The functions reject non-finite values, invalid composition fractions, zero/negative inlet flow, and streams with no inert fraction. Zero or negative net oxygen uptake yields an undefined RQ. Wet-gas corrections, nonconserved inert gases, leaks, poorly mixed streams, and sensor inaccuracies are **not** modeled.
+
+## Python and command line
+
+Python 3.9+ is declared in the package metadata; CI runs Python 3.10–3.12.
+
 ```bash
-python cli.py chat "What is the system status?"
+python -m pip install -e '.[dev]'
+python -m pytest -q
+python -m build --wheel
 ```
 
-### 3. Batch CSV Processing
+Run the domain-specific CLI:
+
 ```bash
+fermentation-gas-mass-spectrometry calculate \
+  --flow 100 --inlet-o2 0.21 --inlet-co2 0 \
+  --outlet-o2 0.16 --outlet-co2 0.04
+```
+
+These CLI/API inputs use fractions (0–1), **not percent values**. The browser form accepts percentages and converts them internally.
+
+Existing legacy commands remain available:
+
+```bash
+python cli.py audit --task-id DEMO-1 --target VESSEL-1 --primary 12 --secondary 4
 python cli.py batch -i sample.csv -o results.csv
-```
-
-### 4. Verify Audit Trail Integrity
-```bash
 python cli.py verify-audit
+fermentation-gas-mass-spectrometry audit --task-id DEMO-1
 ```
 
-### 5. Launch REST API Server
+The legacy multi-worker audit classifiers evaluate **fixed, illustrative thresholds**, not validated clinical or bioprocess reference limits. They should not be used as safety interlocks or evidence of compliance with CAP, CLSI, ISO, or other standards.
+
+## Local REST API
+
 ```bash
 python cli.py serve --host 127.0.0.1 --port 8000
 ```
 
-### Parameter Reference
-| Flag | Description | Default |
-|:-----|:------------|:--------|
-| `--task-id` | Unique task identifier | `TASK-2026-001` |
-| `--target` | Target/specimen identifier | `KEY-TARGET-01` |
-| `--primary` | Primary metric measurement | `28.5` |
-| `--secondary` | Secondary metric measurement | `14.2` |
-| `--critical` | Enable critical flag | `False` |
-| `--status` | Status descriptor | `DISCORDANT` |
-
-### Input Data Schema
-
-| Field | Description | Requirement |
-|:------|:------------|:------------|
-| `task_id` | Parameter / observation metric | Required |
-| `target_identifier` | Parameter / observation metric | Required |
-| `primary_metric` | Primary measurement value | Required |
-| `secondary_metric` | Secondary measurement value | Optional |
-| `is_critical_flag` | Emergency escalation trigger | Optional |
-| `status_descriptor` | Status code or phenotype | Optional |
-
----
-
-## 🛡️ Security & Enterprise Architecture
-
-* **Zero-PHI Outbound Interceptor:** Active regex inspection blocking SSNs, MRNs, phone numbers, emails, DOB patterns, and patient names
-* **Tamper-Evident HMAC-SHA256 Audit Trail:** Chained, cryptographically signed logs with full HMAC signature verification (not just chain linkage)
-* **Input Validation:** Pydantic models enforce length bounds, reject NaN/Inf values, and strip control characters
-* **Secure Defaults:** Random audit key generated if `AUDIT_SECRET_KEY` env var is not set (forces explicit production configuration)
-* **API Error Sanitization:** Internal exceptions are logged server-side; clients receive generic error messages
-
-### Environment Variables
-| Variable | Description | Required |
-|:---------|:------------|:---------|
-| `AUDIT_SECRET_KEY` | HMAC key for audit trail signing | Recommended |
-| `MODEL_PROVIDER` | LLM provider (`mock`, `ollama`, `claude`, `openai`) | No (default: `mock`) |
-
----
-
-## 🧪 Testing & Verification
-
-Run the automated test suite:
+Open **http://127.0.0.1:8000/** for the backend-dependent legacy audit console, or **http://127.0.0.1:8000/docs** for generated REST documentation. The new calculation endpoint is `POST /api/offgas/calculate`:
 
 ```bash
-pytest -v
+curl -s http://127.0.0.1:8000/api/offgas/calculate \
+  -H 'Content-Type: application/json' \
+  -d '{"inlet_flow_mmol_min":100,"inlet_o2":0.21,"inlet_co2":0,"outlet_o2":0.16,"outlet_co2":0.04}'
 ```
 
-Execute high-throughput batch simulation benchmarks:
+The legacy API is also available via `python -m offgas_analyzer.cli serve`. Docker deployment is supported by the provided `Dockerfile` and `docker-compose.yml`.
 
-```bash
-python simulator.py 1000
-```
+## Data handling and security
 
----
+The standalone calculator runs in the browser without telemetry or network API requests. The local Python server processes submitted audit values and retains its audit trail **in memory only**. HMAC verification is local to that in-memory chain; it is **not** a durable, externally anchored audit record. For a stable HMAC key during server use, set `AUDIT_SECRET_KEY` to a high-entropy secret in the server environment; do not commit the key.
 
-## 🐳 Container Deployment
+The legacy regular-expression identifier guard is best-effort and cannot guarantee de-identification or regulatory compliance. Do not submit patient-identifiable or otherwise sensitive production data without independent security assessment and deployment controls.
 
-```bash
-# Build and run with Docker Compose (requires AUDIT_SECRET_KEY)
-export AUDIT_SECRET_KEY="$(python -c 'import os; print(os.urandom(32).hex())')"
-docker compose up --build
+## Project layout
 
-# Or use Docker directly
-docker build -t fermentation-gas-mass-spectrometry .
-docker run -p 8000:8000 -e AUDIT_SECRET_KEY="your-key" fermentation-gas-mass-spectrometry
-```
+- `site/` — browser-only OUR/CER/RQ calculator (no Python/WASM required)
+- `offgas_analyzer/calculations.py` — validated gas balance equations
+- `offgas_analyzer/` — domain-specific audit API and CLI
+- `agents/`, `cli.py`, `web/index.html` — preserved legacy workflow and local console
+- `tests/` — unit and API regression tests
+- `.github/workflows/` — CI and Pages publishing automation
 
----
+## License
 
-## 📁 Project Structure
-
-```
-fermentation-gas-mass-spectrometry/
-├── agents/                  # Core multi-agent framework
-│   ├── base.py             # Security guards, HMAC audit trail
-│   ├── models.py           # Pydantic schemas with validation
-│   ├── supervisor.py       # Orchestrator coordinating workers
-│   ├── workers.py          # QC, Safety, Protocol workers
-│   ├── api.py              # FastAPI REST endpoints
-│   ├── metrics.py          # Prometheus metrics exporter
-│   ├── llm_factory.py      # LLM provider abstraction
-│   └── learning.py         # Bayesian calibration engine
-├── offgas_analyzer/         # Domain-specific analyzer module
-│   ├── models.py           # Frontier payload definitions
-│   ├── engine.py           # Core evaluation algorithms
-│   ├── agents.py           # OUR/CER/RQ specialist agents
-│   ├── cli.py              # Domain-specific CLI
-│   └── server.py           # Domain-specific FastAPI server
-├── tests/                   # Pytest test suite
-├── web/index.html           # Operations console UI
-├── cli.py                   # Main CLI entry point
-├── enrichment.py            # Enrichment feature engines
-├── simulator.py             # Load testing simulator
-├── pyproject.toml           # Project configuration
-├── Dockerfile               # Container image definition
-└── docker-compose.yml       # Multi-service orchestration
-```
+MIT. See [LICENSE](LICENSE).
