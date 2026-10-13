@@ -1,0 +1,45 @@
+name: Release
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'master' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Create versioned source release if missing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          VERSION=$(python -c "import tomllib;print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          TAG="v${VERSION}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists"
+            exit 0
+          fi
+          cat > /tmp/release-notes.md <<'NOTES'
+          Adds dry off-gas OUR/CER/RQ calculations based on conserved inert gas,
+          a local browser calculator with CSV export, API and CLI access, and
+          comprehensive Python/JavaScript/Docker regression checks.
+
+          The retained legacy threshold-based audit modules are illustrative;
+          they are not validated bioprocess safety limits. The gas-balance
+          calculator does not process raw mass spectra.
+          NOTES
+          gh release create "$TAG" --target "$TARGET_SHA" \
+            --title "$TAG" --notes-file /tmp/release-notes.md
