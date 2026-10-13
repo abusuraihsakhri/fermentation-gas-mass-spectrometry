@@ -7,7 +7,7 @@ name = "fermentation-gas-mass-spectrometry"
 version = "2.1.0"
 description = "OffGas-Analyzer: Fermentation Respiratory Quotient (RQ) & OUR/CER Engine"
 readme = "README.md"
-authors = [{ name = "Dr. Abu Suraih Sakhri", email = "abusuraih@example.com" }]
+authors = [{ name = "Dr. Abu Suraih Sakhri" }]
 license = { text = "MIT" }
 classifiers = [
     "Programming Language :: Python :: 3",
